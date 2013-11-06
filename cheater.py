@@ -1,6 +1,7 @@
 '''A simple shitty little script to help you cheat at Scrabble'''
 
-import argparse, string, os, csv, itertools, time
+import argparse, string, os, csv 
+from collections import Counter
 
 # CONSTANTS 
 WILDCARD = '@'
@@ -17,7 +18,6 @@ SCORES = {"A": 1, "C": 3, "B": 3, "E": 1, "D": 2, "G": 2,
 # EXCEPTIONS
 class InvalidInputException(Exception):
     pass
-
 
 #INPUT PROCESSING 
 try:
@@ -49,55 +49,82 @@ try:
         raise InvalidInputException(
             'Cannot find the dictionary located at {0}'.format(args.dict))
     
-except InvalidInputException:    
-    print InvalidInputException.message
-    pass
+except InvalidInputException as e:    
+    raise e 
+
+# DERIVE ALL POSSIBLE CHARACTER SETS AND SCORING PROCEDURES
+num_letters = len(args.letters)
+num_wildcards = args.letters.count(WILDCARD)
+tame_rack = args.letters.replace(WILDCARD,'')
+rack_counter = Counter(tame_rack)
 
 # FUNCTIONS
 def get_lazy_list_from_csv(filename):
     with open(filename,mode='r') as f:
         reader = csv.reader(f)
         for line in reader:
-            word = line[0] 
-            yield word
+            yield line[0]
 
 def filter_for_length(word_gen):
     for word in word_gen:
-        if len(word) <= MAX_NUM_CHARS:
+        if len(word) <= num_letters:
             yield word
 
-def match_test(word,tame_rack,num_wildcards):
-    available_chars = tame_rack
-    counter = 0
+def lamer_match_test(w_counter):
+    wcs_necessary = 0
+    for c,num in w_counter.items():
+        num_in_rack = rack_counter.get(c,0)
+        if num > num_in_rack:
+            wcs_necessary += num - num_in_rack
+            if wcs_necessary > num_wildcards:
+                return False
+    return True
+
+def original_match_test(word):
+    wcs_necessary = 0
+    available_chars = tame_rack 
     for c in word:
         if c not in available_chars:
-            counter += 1
-            if counter > num_wildcards:
+            wcs_necessary += 1
+            if wcs_necessary > num_wildcards:
                 return False
         else:
             available_chars = available_chars.replace(c,'',1)
     return True
 
-def score_word(word,tame_rack):
-    summation = 0
-    for c in word: 
-        if c in tame_rack:
-            summation += SCORES[c]
-            tame_rack.replace(c,'',1)
-    return summation
 
-# DERIVE ALL POSSIBLE CHARACTER SETS AND SCORING PROCEDURES
-num_wildcards = args.letters.count(WILDCARD)
-tame_rack = args.letters.replace(WILDCARD,'')
+def alt_match_test(word):
+    return num_wildcards >= sum(max(word.count(c) - rack_counter.get(c,0),0)
+                                    for c in set(word))
+
+def match_test(w_counter):
+    return num_wildcards >= sum(max(num - rack_counter.get(char,0),0)
+                                    for char,num in w_counter.items()) 
+
+def score_word(w_counter):
+    return sum(min(rack_counter.get(char,0),num)*SCORES[char]
+                    for char,num in w_counter.items())
+
+def original_score_word(word):
+    available_chars = tame_rack 
+    summation = 0
+    for c in word:
+        if c in available_chars:
+            summation += SCORES[c]
+            available_chars = available_chars.replace(c,'',1)
+    return summation
 
 words_scores = []
 
 for word in filter_for_length(get_lazy_list_from_csv(args.dict)):
-    if match_test(word,tame_rack,num_wildcards):
-        words_scores.append((word,score_word(word,tame_rack)))
+    if original_match_test(word):
+        words_scores.append((word,original_score_word(word)))
 
-sorted_word_scores = sorted(words_scores,key=lambda x:x[1],reverse=True)[:args.num_results]
+sorted_word_scores = sorted(words_scores,key=lambda x:x[1],reverse=True)
+limited = sorted_word_scores[:args.num_results]
 
-for i, (word, score) in enumerate(sorted_word_scores):
+print 'Showing {0} of {1} results...'.format(len(limited),len(sorted_word_scores))
+
+for i, (word, score) in enumerate(limited):
     print '{0}. "{1}" = {2} points'.format(i+1,word,score)
 
