@@ -117,7 +117,7 @@ def original_score_word(word):
 words_scores = []
 
 for word in filter_for_length(get_lazy_list_from_csv(args.dict)):
-    if alt_match_test(word):
+    if original_match_test(word):
         words_scores.append((word,original_score_word(word)))
 
 sorted_word_scores = sorted(words_scores,key=lambda x:x[1],reverse=True)
