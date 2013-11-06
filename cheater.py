@@ -7,7 +7,7 @@ from collections import Counter
 WILDCARD = '@'
 PATH_TO_DICT = 'dictionaries/sowpods.txt'
 VALID_CHARS = string.uppercase + WILDCARD
-MAX_NUM_CHARS = 7
+MAX_NUM_CHARS = 9
 
 SCORES = {"A": 1, "C": 3, "B": 3, "E": 1, "D": 2, "G": 2,
          "F": 4, "I": 1, "H": 4, "K": 5, "J": 8, "M": 3,
@@ -117,7 +117,7 @@ def original_score_word(word):
 words_scores = []
 
 for word in filter_for_length(get_lazy_list_from_csv(args.dict)):
-    if original_match_test(word):
+    if alt_match_test(word):
         words_scores.append((word,original_score_word(word)))
 
 sorted_word_scores = sorted(words_scores,key=lambda x:x[1],reverse=True)
