@@ -1,6 +1,6 @@
 '''A simple shitty little script to help you cheat at Scrabble'''
 
-import argparse, string, os, csv, itertools 
+import argparse, string, os, csv, itertools, time
 
 # CONSTANTS 
 WILDCARD = '@'
@@ -66,12 +66,16 @@ def filter_for_length(word_gen):
         if len(word) <= MAX_NUM_CHARS:
             yield word
 
-def match_test(word,rack):
-    available_chars = rack
+def match_test(word,tame_rack,num_wildcards):
+    available_chars = tame_rack
+    counter = 0
     for c in word:
         if c not in available_chars:
-            return False
-        available_chars = available_chars.replace(c,'',1)
+            counter += 1
+            if counter > num_wildcards:
+                return False
+        else:
+            available_chars = available_chars.replace(c,'',1)
     return True
 
 def score_word(word,tame_rack):
@@ -85,22 +89,15 @@ def score_word(word,tame_rack):
 # DERIVE ALL POSSIBLE CHARACTER SETS AND SCORING PROCEDURES
 num_wildcards = args.letters.count(WILDCARD)
 tame_rack = args.letters.replace(WILDCARD,'')
-wildcard_possibilities = ((''.join(wc) for wc in 
-                            itertools.combinations_with_replacement(
-                                            string.uppercase,num_wildcards))
-                                if num_wildcards else [''])
 
 words_scores = []
 
-for wildcards in wildcard_possibilities:
-    wild_rack = tame_rack + ''.join(wildcards)
-    for word in filter_for_length(get_lazy_list_from_csv(args.dict)):
-        if match_test(word,wild_rack):
-            words_scores.append((word,score_word(word,tame_rack)))
+for word in filter_for_length(get_lazy_list_from_csv(args.dict)):
+    if match_test(word,tame_rack,num_wildcards):
+        words_scores.append((word,score_word(word,tame_rack)))
 
 sorted_word_scores = sorted(words_scores,key=lambda x:x[1],reverse=True)[:args.num_results]
 
 for i, (word, score) in enumerate(sorted_word_scores):
     print '{0}. "{1}" = {2} points'.format(i+1,word,score)
-
 
