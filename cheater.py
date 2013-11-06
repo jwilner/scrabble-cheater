@@ -32,6 +32,9 @@ try:
     parser.add_argument('--num_results',help='The number of words to show',
             type=int,default=100)
 
+    parser.add_argument('--lazy',help='Whether to read the file lazily or not.',
+            type=bool,default=False)
+
     args = parser.parse_args()
     args.letters = args.letters.upper()
 
@@ -64,6 +67,11 @@ def get_lazy_list_from_csv(filename):
         reader = csv.reader(f)
         for line in reader:
             yield line[0]
+
+def get_non_lazy_list_from_csv(filename):
+    with open(filename,mode='r') as f:
+        reader = csv.reader(f)
+        return [line[0] for line in reader]
 
 def filter_for_length(word_gen):
     for word in word_gen:
@@ -116,7 +124,11 @@ def original_score_word(word):
 
 words_scores = []
 
-for word in filter_for_length(get_lazy_list_from_csv(args.dict)):
+file_loader = get_non_lazy_list_from_csv if not args.lazy else get_lazy_list_from_csv
+
+print 'Using function {0!r}'.format(file_loader)
+
+for word in filter_for_length(get_non_lazy_list_from_csv(args.dict)):
     if original_match_test(word):
         words_scores.append((word,original_score_word(word)))
 
