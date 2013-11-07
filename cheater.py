@@ -32,13 +32,11 @@ try:
     parser.add_argument('--num_results',help='The number of words to show',
             type=int,default=100)
 
-    parser.add_argument('--lazy',help='Whether to read the file lazily or not.',
-            type=bool,default=False)
-
     args = parser.parse_args()
     args.letters = args.letters.upper()
 
     invalid_chars = {c for c in args.letters if c not in VALID_CHARS}
+
     if invalid_chars:
         raise InvalidInputException(
             'The following are invalid characters for this cheater: {0}'.format(
@@ -68,25 +66,10 @@ def get_lazy_list_from_csv(filename):
         for line in reader:
             yield line[0]
 
-def get_non_lazy_list_from_csv(filename):
-    with open(filename,mode='r') as f:
-        reader = csv.reader(f)
-        return [line[0] for line in reader]
-
 def filter_for_length(word_gen):
     for word in word_gen:
         if len(word) <= num_letters:
             yield word
-
-def lamer_match_test(w_counter):
-    wcs_necessary = 0
-    for c,num in w_counter.items():
-        num_in_rack = rack_counter.get(c,0)
-        if num > num_in_rack:
-            wcs_necessary += num - num_in_rack
-            if wcs_necessary > num_wildcards:
-                return False
-    return True
 
 def original_match_test(word):
     wcs_necessary = 0
@@ -100,19 +83,6 @@ def original_match_test(word):
             available_chars = available_chars.replace(c,'',1)
     return True
 
-
-def alt_match_test(word):
-    return num_wildcards >= sum(max(word.count(c) - rack_counter.get(c,0),0)
-                                    for c in set(word))
-
-def match_test(w_counter):
-    return num_wildcards >= sum(max(num - rack_counter.get(char,0),0)
-                                    for char,num in w_counter.items()) 
-
-def score_word(w_counter):
-    return sum(min(rack_counter.get(char,0),num)*SCORES[char]
-                    for char,num in w_counter.items())
-
 def original_score_word(word):
     available_chars = tame_rack 
     summation = 0
@@ -122,21 +92,19 @@ def original_score_word(word):
             available_chars = available_chars.replace(c,'',1)
     return summation
 
-words_scores = []
+# actual process
+def gen_matching_words(): 
+    for word in filter_for_length(get_lazy_list_from_csv(args.dict)):
+        if original_match_test(word):
+            yield (original_score_word(word),word)
 
-file_loader = get_non_lazy_list_from_csv if not args.lazy else get_lazy_list_from_csv
+sorted_word_scores = sorted(gen_matching_words(),
+                            reverse=True)
 
-print 'Using function {0!r}'.format(file_loader)
-
-for word in filter_for_length(get_non_lazy_list_from_csv(args.dict)):
-    if original_match_test(word):
-        words_scores.append((word,original_score_word(word)))
-
-sorted_word_scores = sorted(words_scores,key=lambda x:x[1],reverse=True)
 limited = sorted_word_scores[:args.num_results]
 
 print 'Showing {0} of {1} results...'.format(len(limited),len(sorted_word_scores))
 
-for i, (word, score) in enumerate(limited):
+for i,(score,word) in enumerate(limited):
     print '{0}. "{1}" = {2} points'.format(i+1,word,score)
 
